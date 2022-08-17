@@ -8,26 +8,6 @@ from models import model_HR
 sys.path.insert(0, '/home/fiodice/project/src')
 
 
-def load_densenet(path_model):
-    model = model_HR.HierarchicalResidual(encoder='densenet121')
-    dict_model = torch.load(path_model)["model"]
-    model.load_state_dict(dict_model)
-
-    del model.fc1
-    del model.fc2
-
-    for param in model.parameters():
-        param.requires_grad = False
-
-    model.fc = nn.Linear(1024, 2)
-
-    for param in model.fc.parameters():
-        param.requires_grad = True
-    
-    return model
-
-
-
 def test_calcium_det(path_model):
     model = model_HR.HierarchicalResidual(encoder='densenet121')
     dict_model = torch.load(path_model)["model"]
@@ -58,7 +38,6 @@ def densenet_classifier(path_model):
 
     model.fc =  torch.nn.Sequential(
             torch.nn.Linear(1024, 64),
-            #torch.nn.Dropout(p=0.4),
             torch.nn.ReLU(),
             torch.nn.Linear(64, 2))
 
@@ -68,7 +47,7 @@ def densenet_classifier(path_model):
     return model
 
 
-def load_resnet_mlp(path_model):
+def resnet_clf(path_model):
     model = model_HR.HierarchicalResidual(encoder='resnet18')
     dict_model = torch.load(path_model)["model"]
     model.load_state_dict(dict_model)
@@ -91,7 +70,7 @@ def load_resnet_mlp(path_model):
     return model
 
 
-def load_effcientNet(path_model):
+def effcientNet_regressor(path_model):
     model = model_HR.HierarchicalResidual(encoder='efficientnet-b0')
     dict_model = torch.load(path_model)["model"]
     model.load_state_dict(dict_model)
@@ -157,7 +136,7 @@ def test_densenet_regressor(path_model):
 def unfreeze_param_lastlayer_dense_regr(model):
     #model_last_layer = model.encoder[-3][-2].denselayer16
     # adding dropout
-    model_last_layer = model.encoder[-4][-2].denselayer16
+    model_last_layer = model.encoder[-3][-2].denselayer16
 
     for param in model_last_layer.parameters():
         param.requires_grad = True
@@ -167,7 +146,7 @@ def unfreeze_param_lastlayer_dense_regr(model):
 def unfreeze_param_lastlayer_dense_clf(model):
     #model_last_layer = model.encoder[-3][-2].denselayer16
     # adding dropout
-    model_last_layer = model.encoder[-4][-2].denselayer16
+    model_last_layer = model.encoder[-3][-2].denselayer16
 
     for param in model_last_layer.parameters():
         param.requires_grad = True
@@ -175,24 +154,8 @@ def unfreeze_param_lastlayer_dense_clf(model):
     return model_last_layer
 
 
-def unfreeze_param_last2layer_dense(model):
-    model_lastblock_layer16 = model.encoder[-3][-2].denselayer16
-    model_lastblock_layer15 = model.encoder[-3][-2].denselayer15
-
-    for param in model_lastblock_layer16.parameters():
-        param.requires_grad = True
-
-    for param in model_lastblock_layer15.parameters():
-        param.requires_grad = True
-
-    return model_lastblock_layer16, model_lastblock_layer15
-
-
 def unfreeze_param_lastlayer_eff(model):
     model_last_layer = list(model.encoder.children())[-5]
-
-    for i, layer in enumerate((list(model.encoder.children()))):
-        print(f'For {i} layer {layer}')
 
     for param in model_last_layer.parameters():
         param.requires_grad = True

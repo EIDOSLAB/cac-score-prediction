@@ -32,7 +32,7 @@ def convert(img, target_type_min, target_type_max, target_type):
 
 
 class CalciumDetection(torch.utils.data.Dataset):
-    def __init__(self, data_dir, labels_path, transform=None, require_path_file=False):
+    def __init__(self, data_dir, labels_path, transform=None, require_cac_score=False):
         self.root = data_dir
         self.elem = glob.glob(self.root + '*' + '/rx/')
 
@@ -42,7 +42,7 @@ class CalciumDetection(torch.utils.data.Dataset):
 
         self.labels = [dict(row) for row in cursor.execute('SELECT * FROM patient').fetchall()]
         self.transform = transform
-        self.require_path_file = require_path_file
+        self.require_cac_score = require_cac_score
 
 
     def __len__(self):
@@ -62,11 +62,9 @@ class CalciumDetection(torch.utils.data.Dataset):
 
         if self.transform is not None:
             img = self.transform(img=img)
-        else:
-            img = torchvision.transforms.ToTensor()(img)
 
-        if self.require_path_file:
-            return img, path, label
+        if self.require_cac_score:
+            return img, label, cac_score
         else:
             return img, label
 

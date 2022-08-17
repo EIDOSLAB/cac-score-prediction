@@ -33,7 +33,7 @@ class HierarchicalResidual(torch.nn.Module):
             self.encoder = torch.nn.Sequential(
                 self.encoder.features,
                 torch.nn.ReLU(inplace=True),
-                torch.nn.Dropout2d(p=0.5),
+                #torch.nn.Dropout2d(p=0.5),
                 torch.nn.AdaptiveAvgPool2d((1, 1)),
             )
 

@@ -2,9 +2,8 @@ import torch
 import dataset
 import sys
 import numpy as np
-from sklearn.model_selection import KFold
 
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import KFold
 from tqdm import tqdm
 
 from utility import utils_regression
@@ -76,5 +75,6 @@ if __name__ == '__main__':
                 all_labels.append(labels.detach().cpu())
                 all_outputs.append(outputs.detach().cpu())
         
-        utils_regression.cac_prediction_error_bin(torch.cat(all_labels).numpy(), torch.cat(all_outputs).numpy(), mean_cac, std_cac, 0, 10)
+        utils_regression.cac_prediction_error2(torch.cat(all_labels).numpy(), torch.cat(all_outputs).numpy(), mean_cac, std_cac, 0, False, 300, False)
+        utils_regression.cac_prediction_error(torch.cat(all_labels).numpy(), torch.cat(all_outputs).numpy(), mean_cac, std_cac, 0, False, 300, False)
 

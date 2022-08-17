@@ -1,5 +1,5 @@
 
-import dataset
+from dataset import CalciumDetectionRegression
 import numpy as np
 import sys
 import torch
@@ -10,7 +10,7 @@ import sqlite3
 import matplotlib.pyplot as plt
 
 PATH_PLOT = '/home/fiodice/project/plot_analyses/'
-VISUALIZE = False
+VISUALIZE = True
 
 sys.path.insert(0, '/home/fiodice/project/src')
 
@@ -20,10 +20,12 @@ def save_cac_distribution(loader):
     for (_, labels) in (loader):
         scores.append(labels.numpy()[0])
 
+    scores = np.clip(scores, a_min=0, a_max=2000)
+
     plt.figure()
     plt.rcParams.update({'figure.figsize':(7,5), 'figure.dpi':100})
     plt.hist(scores, bins=int(180/1))
-    plt.gca().set(title='Frequency Histogram CAC score', xlabel='Calcium score', ylabel='Count')
+    plt.gca().set(title='Frequency Histogram Clip CAC score', xlabel='Calcium score', ylabel='Count')
     plt.savefig(PATH_PLOT + 'cac_frequency.png')
     plt.close()
 
@@ -44,7 +46,7 @@ if __name__ == '__main__':
     path_labels = '/home/fiodice/project/dataset/labels_new.db'
 
     if VISUALIZE:
-        whole_dataset = dataset.CalciumDetectionRegression(path_data, path_labels, transform=None)
+        whole_dataset = CalciumDetectionRegression(path_data, path_labels, transform=None)
 
         loader = torch.utils.data.DataLoader(whole_dataset,
                             batch_size = 1,

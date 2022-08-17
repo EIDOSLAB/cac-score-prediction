@@ -7,7 +7,6 @@ import numpy as np
 
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score, balanced_accuracy_score
-from collections import Counter
 from torch.optim.lr_scheduler import MultiStepLR
 from tqdm import tqdm
 
@@ -20,6 +19,7 @@ sys.path.insert(0, '/home/fiodice/project/src')
 PATH_PLOT = '/home/fiodice/project/plot_training/'
 THRESHOLD_CAC_SCORE = 10
 VISUALIZE_FOLD = False
+SAVE_MODEL = False
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -68,11 +68,11 @@ if __name__ == '__main__':
     path_labels = '/home/fiodice/project/labels/labels_new.db'
     path_model = '/home/fiodice/project/src/models_pt/pretrained_model/dense_final.pt'
 
-    accs, b_accs = [], []
+    accs, b_accs, auc_scores = [], [], []
 
     seed = 42
     k_folds = 5
-    epochs = 40
+    epochs = 100
     batchsize = 4
     mean, std = [0.5024], [0.2898]
 
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     transform, _ = utils.get_transforms(img_size=1248, crop=1024, mean = mean, std = std)
 
     whole_dataset = dataset.CalciumDetectionRegression(path_data, path_labels, transform)
-    whole_dataset = utils.local_copy(whole_dataset)
+    whole_dataset = utils.local_copy(whole_dataset, require_cac_score=False)
     datas, labels = utils_regression.local_copy_str_kfold(whole_dataset)
 
     skf = StratifiedKFold(n_splits= k_folds)
@@ -117,18 +117,23 @@ if __name__ == '__main__':
         best_model = None
         best_test_acc, best_test_bacc = 0., 0.
         best_pred_labels = []
-        true_labels = []
+        true_labels, best_model_true_label = [], []
         pred_labels = []
         test_acc = 0.
         test_loss = 0.
         
         lr = 0.001
+        #lr = 0.0003
+
         weight_decay = 0.0001
         momentum = 0.9
         
         params = [model.fc.parameters(), model_last_layer.parameters()]
         optimizer = torch.optim.SGD(itertools.chain(*params),  lr=lr, weight_decay=weight_decay, momentum=momentum)
+        #optimizer = torch.optim.AdamW(itertools.chain(*params), betas=(0.9,0.999),eps=1e-08, lr=lr, weight_decay=weight_decay)
+
         scheduler = MultiStepLR(optimizer, milestones=[20, 40, 60], gamma=0.1)
+        #scheduler = MultiStepLR(optimizer, milestones=[15, 25], gamma=0.1)
 
         train_losses, test_losses = [], []
         train_accs, test_accs = [],[]
@@ -157,28 +162,32 @@ if __name__ == '__main__':
                 best_model = copy.deepcopy(model)
                 best_test_bacc = balanced_accuracy_score(class_labels, class_preds)
                 best_test_acc = test_acc 
+                best_model_true_label = labels
                 best_pred_labels = class_preds 
                 f_outputs = outputs
 
                 print(f'Model UPDATE Acc: {accuracy_score(class_labels, class_preds):.4f} B-Acc : {balanced_accuracy_score(class_labels, class_preds):.4f}')
-                print(f'Labels {Counter(class_labels)} Output {Counter(best_pred_labels)}')
                 utils.save_cm_fold(class_labels, best_pred_labels, fold, PATH_PLOT)
-        
-        utils_regression.cac_prediction_error(labels, f_outputs, mean_cac, std_cac, fold, True, 300, True)
-        #utils_regression.cac_prediction_error_log(labels, f_outputs, mean_cac, std_cac, fold, True, 300)
 
-        torch.save({'model': best_model.state_dict()}, f'calcium-detection-sdg-seed-{seed}-regr-fold-{fold}.pt')
-
+        # End epochs
         utils.save_metric_fold(train_accs, test_accs, 'accs', fold, PATH_PLOT)
-        utils.save_metric_fold(trains_abs, tests_abs, 'abs', fold, PATH_PLOT)
-        
-        print('Accuracy for fold %d: %d %%' % (fold, 100.0 * best_test_acc))
-        print('B-Accuracy for fold %d: %d %%' % (fold, 100.0 * best_test_bacc))
+        utils.save_metric_fold(trains_abs, tests_abs, 'abs', fold, PATH_PLOT)       
+        utils_regression.cac_prediction_error(best_model_true_label, f_outputs, mean_cac, std_cac, fold)
+        utils_regression.cac_prediction_error_bin(labels, f_outputs, mean_cac, std_cac, fold)
 
+        if SAVE_MODEL:
+            torch.save({'model': best_model.state_dict()}, f'calcium-detection-sdg-seed-{seed}-regr-fold-{fold}.pt')
+
+        #print('Accuracy for fold %d: %d %%' % (fold, 100.0 * best_test_acc))
+        print('B-Accuracy for fold %d: %d %%' % (fold, 100.0 * best_test_bacc))
         print('--------------------------------')
         
-        b_accs.append(100.0 * best_test_bacc)
-        accs.append(100.0 * best_test_acc)
+        auc_score = utils_regression.regression_roc_auc_score(class_labels, class_preds)
+
+        b_accs.append(best_test_bacc)
+        accs.append(best_test_acc)
+        auc_scores.append(auc_score)
+
         utils.save_losses_fold(train_losses, test_losses, best_test_acc, fold, PATH_PLOT)
 
     # Print fold results
@@ -187,11 +196,9 @@ if __name__ == '__main__':
     
     b_accs = np.array(b_accs)
     accs = np.array(accs)
+    auc_scores = np.array(auc_scores)
 
     for fold, value in enumerate(accs):
-        print(f'Fold {fold}: {value} %')
-    print(f'ACC Average: {accs.mean()} % STD : {accs.std()}\n')
+        print(f'Fold {fold}: Acc {accs[fold]:.4f} BA {b_accs[fold]:.4f} AUC {auc_scores[fold]:.4f}\n')
 
-    for fold, value in enumerate(b_accs):
-        print(f'Fold {fold}: {value} %')
-    print(f'B-ACC Average: {b_accs.mean()} % STD : {b_accs.std()}\n')
+    print(f'Average  AC: {accs.mean()} BA: {b_accs.mean()} AUC: {auc_scores.mean()}\n')

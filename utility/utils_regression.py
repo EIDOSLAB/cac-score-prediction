@@ -6,38 +6,45 @@ PATH_PLOT = '/home/fiodice/project/plot_training/'
 MAX_CAC_VAL = 2000
 
 
-def cac_prediction_error_bin(labels, preds, mean, std, fold, size_bin):
+def cac_prediction_error_bin(labels, preds, mean, std, fold):
     labels = np.exp((labels * std) + mean - 0.001).flatten()
     preds = np.exp((preds * std) + mean - 0.001).flatten()
-    #labels = np.clip(labels,a_min=0, a_max=2000).flatten()
-    #preds = np.clip(preds,a_min=0, a_max=2000).flatten()
 
-    preds_and_labels = list(np.array((preds,labels)).T)
-    preds_and_labels.sort(key=lambda pred: pred[0])
+    labels_and_pred = list(np.array((labels, preds)).T)
+    labels_and_pred.sort(key=lambda label: label[0])
 
-    bins, error_bins = [], []
-    error_bin = 0
-    for index, (prediction, label) in enumerate(preds_and_labels):
-        if index == 0:
-            bins.append(prediction)
+    bins = [ 10, 500, 1000 , 2000]
+    error, sample_for_bin = [], []
+    error_on_bin, index_error, count = 0, 0, 0
 
-        error_bin += np.abs(label - prediction)
+    for label, prediction in labels_and_pred:
+        count += 1
+        error_on_bin += np.abs(label - prediction)
+        if label > bins[index_error]:
+            error.append(error_on_bin/count)
+            sample_for_bin.append(count)
+            error_on_bin = 0
+            count = 0
+            index_error += 1
 
-        if index % size_bin == 0 and index != 0:
-            bins.append(prediction)
-            error_bins.append(error_bin)
-            error_bin = 0
+    sample_for_bin.append(count)   
+    error.append(error_on_bin)
+
+    print(f'EBins {error} size {len(error)}')
 
     plt.figure(figsize=(18, 10))
-    plt.xlabel("Error on bin")
-    plt.ylabel("Calcium predicted")
-    plt.hist(error_bins, bins=bins)
-
+    plt.ylabel("Mean error on bin")
+    plt.xlabel("Calcium score")
+    plt.bar([1, 2, 3, 4], height=error)
+    plt.xticks([1, 2, 3, 4], [f'[0:10] N = {sample_for_bin[0]}',
+                              f'[10:200] N = {sample_for_bin[1]}',
+                              f'[200:500] N = {sample_for_bin[2]}',
+                              f'[500:2000] N = {sample_for_bin[3]}'])
     plt.show()
-    plt.savefig(PATH_PLOT  + 'bin.png')
+    plt.savefig(PATH_PLOT  + 'errorbin_fold' + str(fold) + '.png')
 
 
-def cac_prediction_error(labels, preds, mean, std, fold, viz, max_val, log_scale):
+def cac_prediction_error(labels, preds, mean, std, fold, max_val=300, log_scale=False):
     th = 10
     if log_scale:
         labels = ((labels * std) + mean - 0.001).flatten()
@@ -49,25 +56,13 @@ def cac_prediction_error(labels, preds, mean, std, fold, viz, max_val, log_scale
         labels = np.clip(labels,a_min=0, a_max=max_val).flatten()
         preds = np.clip(preds,a_min=0, a_max=max_val).flatten()
 
-    preds_and_labels = list(np.array((preds,labels)).T)
-    preds_and_labels.sort(key=lambda pred: pred[0])
+    labels_and_preds = list(np.array((labels,preds)).T)
+    labels_and_preds.sort(key=lambda label: label[0])
 
     top_error, bottom_error = [], []
-    for prediction, label in preds_and_labels:
-        err = label - prediction
-        top_error.append(err)
+    for label, prediction in labels_and_preds:
+        top_error.append(prediction - label)
         bottom_error.append(0)
-
-    if viz:
-        preds_sort, labels_sort = zip(*preds_and_labels)
-        plt.figure(figsize=(16, 8))
-        plt.plot(labels_sort, label='Labels')
-        plt.plot(preds_sort, label='Preds')
-        plt.legend()
-        plt.xlabel("Samples")
-        plt.ylabel("Calcium score predicted")
-        plt.savefig(PATH_PLOT  + 'error_all_cac_fold' + str(fold) + '.png')
-        plt.close()
 
     plt.figure(figsize=(18, 10))
     plt.xlabel("Samples")
@@ -76,10 +71,10 @@ def cac_prediction_error(labels, preds, mean, std, fold, viz, max_val, log_scale
     plt.axhline(y = th, color = 'r', label = "Threshold")
 
     plt.errorbar(x = np.arange(start=0, stop=len(labels)), 
-                 y = np.sort(preds), 
+                 y = np.sort(labels), 
                  yerr=[bottom_error, top_error], fmt='o')
     plt.show()
-    plt.savefig(PATH_PLOT  + 'error_cac_fold' + str(fold) + '.png')
+    plt.savefig(PATH_PLOT  + 'error_cac_final_fold' + str(fold) + '.png')
     plt.close()
 
 
@@ -103,11 +98,8 @@ def pre_process_label(mean, std, labels):
 
 def mean_std_cac_score_log(loader):
     train_score = torch.cat([labels for (_, labels) in loader]).numpy()
-    #print(train_score.mean(), train_score.std())
     train_score_clip = np.clip(train_score, a_min=0, a_max=MAX_CAC_VAL)
-    #print(train_score_clip.mean(), train_score_clip.std())
     train_log_score = np.log(train_score_clip + 0.001)
-    #print(train_log_score.mean(), train_log_score.std())
     return train_log_score.mean(), train_log_score.std()
 
 
@@ -133,20 +125,71 @@ def to_class(continuos_values, labels, th):
     return torch.tensor(output_labels), torch.tensor(classes_labels)
 
 
+def samples_for_preds(probs):
+    samples_for_preds = []
+    samples_for_preds.append(((0.5 < probs) & (probs <= 0.6)).sum())
+    samples_for_preds.append(((0.6 < probs) & (probs <= 0.7)).sum())
+    samples_for_preds.append(((0.7 < probs) & (probs <= 0.8)).sum())
+    samples_for_preds.append(((0.8 < probs) & (probs <= 0.9)).sum())
+    samples_for_preds.append(((0.9 < probs) & (probs <= 1)).sum())
+    return samples_for_preds
 
-if __name__ == '__main__':
-    #y = np.array([218, 280, 233, 300, 228, 239]) 
-    #x = np.array([102, 90,   90,  20,  0,  0])
 
-    #cac_prediction_error_bin(x,y,1,1,9,2)
-    bins = np.array([ 0, 2, 5, 10, 400,1000,2000])
-    x = np.array([ 0, 10, 20, 30, 40, 50, 70,90,0,1000,1000,1000,1001])
-    w = np.array([ 8, 12, 24, 26, 30, 40, 60])
+def regression_roc_auc_score(y_true, y_pred, num_rounds = 10000):
+  """
+  Computes Regression-ROC-AUC-score.
+  
+  Parameters:
+  ----------
+  y_true: array-like of shape (n_samples,). Binary or continuous target variable.
+  y_pred: array-like of shape (n_samples,). Target scores.
+  num_rounds: int or string. If integer, number of random pairs of observations. 
+              If string, 'exact', all possible pairs of observations will be evaluated.
+  
+  Returns:
+  -------
+  rroc: float. Regression-ROC-AUC-score.
+  """
+      
+  y_true = np.array(y_true)
+  y_pred = np.array(y_pred)
 
-    plt.figure(figsize=(18, 10))
-    plt.xlabel("Error on bin")
-    plt.ylabel("Calcium predicted")
-    plt.hist(x, bins=bins, weights=w)
+  num_pairs = 0
+  num_same_sign = 0
+  
+  for i, j in _yield_pairs(y_true, num_rounds):
+    diff_true = y_true[i] - y_true[j]
+    diff_score = y_pred[i] - y_pred[j]
+    if diff_true * diff_score > 0:
+      num_same_sign += 1
+    elif diff_score == 0:
+      num_same_sign += .5
+    num_pairs += 1
+      
+  return num_same_sign / num_pairs
 
-    plt.show()
-    plt.savefig(PATH_PLOT  + 'bin2.png')
+
+def _yield_pairs(y_true, num_rounds):
+  """
+  Returns pairs of valid indices. Indices must belong to observations having different values.
+  
+  Parameters:
+  ----------
+  y_true: array-like of shape (n_samples,). Binary or continuous target variable.
+  num_rounds: int or string. If integer, number of random pairs of observations to return. 
+              If string, 'exact', all possible pairs of observations will be returned.
+  
+  Yields:
+  -------
+  i, j: tuple of int of shape (2,). Indices referred to a pair of samples.
+  
+  """  
+  if num_rounds == 'exact':
+    for i in range(len(y_true)):
+      for j in np.where((y_true != y_true[i]) & (np.arange(len(y_true)) > i))[0]:
+        yield i, j     
+  else:
+    for r in range(num_rounds):
+      i = np.random.choice(range(len(y_true)))
+      j = np.random.choice(np.where(y_true != y_true[i])[0])
+      yield i, j
