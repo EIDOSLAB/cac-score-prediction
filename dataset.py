@@ -1,5 +1,4 @@
 import torch
-from PIL import Image
 import glob
 import os
 import torchvision
@@ -7,12 +6,12 @@ import pydicom
 import numpy as np
 import sqlite3
 
-from pydicom.pixel_data_handlers.util import  apply_windowing, apply_modality_lut
+from pydicom.pixel_data_handlers.util import  apply_windowing
 from skimage import exposure
+from PIL import Image
 
-PATH_PLOT = '/home/fiodice/project/plot_training/'
 
-## For wrong entry in site.db
+## For get the corrent entry in labels.db
 def get_patient_id(dimg):
     if dimg.PatientID == 'CAC_1877':
         return dimg.PatientName
@@ -32,16 +31,19 @@ def convert(img, target_type_min, target_type_max, target_type):
 
 
 class CalciumDetection(torch.utils.data.Dataset):
-    def __init__(self, data_dir, labels_path, transform=None, require_cac_score=False):
+    def __init__(self, data_dir, transform, mode, require_cac_score=False):
         self.root = data_dir
         self.elem = glob.glob(self.root + '*' + '/rx/')
 
-        conn = sqlite3.connect(labels_path)
+        path_labels = data_dir + 'labels.db'
+
+        conn = sqlite3.connect(path_labels)
         conn.row_factory = sqlite3.Row  
         cursor = conn.cursor()
 
         self.labels = [dict(row) for row in cursor.execute('SELECT * FROM patient').fetchall()]
         self.transform = transform
+        self.mode = mode
         self.require_cac_score = require_cac_score
 
 
@@ -62,11 +64,14 @@ class CalciumDetection(torch.utils.data.Dataset):
 
         if self.transform is not None:
             img = self.transform(img=img)
-
-        if self.require_cac_score:
-            return img, label, cac_score
+        
+        if self.mode == 'regression':
+            return img.float(), cac_score 
         else:
-            return img, label
+            if self.require_cac_score:
+                return img, label, cac_score
+            else:
+                return img, label
 
 
 
@@ -97,12 +102,7 @@ class CalciumDetectionRegression(torch.utils.data.Dataset):
         img_array = ~img8 if dimg.PhotometricInterpretation == 'MONOCHROME1' else img8
         img = Image.fromarray(img_array)
 
-        # Process label                
         cac_score = [label for label in self.labels if label['id'] == get_patient_id(dimg)][0]['cac_score']
-        #cac_clip = np.clip([cac_score],a_min=0, a_max=2000)
-        #log_cac_score = np.log(cac_clip + 1)[0] 
-        #cac_log = np.log((np.clip([cac_score],a_min=0, a_max=2000) + 0.001))
-        #cac_norm = norm_log(cac_log)[0]
 
         if self.transform is not None:
             img = self.transform(img=img)
