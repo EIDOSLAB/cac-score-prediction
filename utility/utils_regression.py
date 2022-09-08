@@ -8,22 +8,16 @@ sys.path.insert(0, base_path + '/src')
 
 
 def pre_process_label(mean, std, labels):
-    train_score_clip = np.clip(labels.detach().cpu(), a_min=0, a_max=max_cac_val)
-    train_log_score = np.log(train_score_clip + 0.001)
-    return (train_log_score - mean) / std
+    cac_score_clip = np.clip(labels.detach().cpu(), a_min=0, a_max=max_cac_val)
+    log_cac_score = np.log(cac_score_clip + 0.001)
+    return (log_cac_score - mean) / std
 
 
 def mean_std_cac_score_log(loader):
-    train_score = torch.cat([labels for (_, labels) in loader]).numpy()
-    train_score_clip = np.clip(train_score, a_min=0, a_max=max_cac_val)
-    train_log_score = np.log(train_score_clip + 0.001)
-    return train_log_score.mean(), train_log_score.std()
-
-
-def norm_labels(mean, std, labels):
-    cac_clip = np.clip([labels],a_min=0, a_max=max_cac_val)
-    log_cac_score = np.log(cac_clip + 0.001)
-    return (log_cac_score - mean) / std
+    cac_score = torch.cat([labels for (_, labels) in loader]).numpy()
+    cac_score_clip = np.clip(cac_score, a_min=0, a_max=max_cac_val)
+    log_cac_score = np.log(cac_score_clip + 0.001)
+    return log_cac_score.mean(), log_cac_score.std()
 
 
 def local_copy_str_kfold(dataset):

@@ -11,6 +11,8 @@ from utility.config import TH_cac_score, base_path
 
 PATH_PLOT = base_path + '/plot_training/'
 
+plt.rc('font', size=13) 
+
 ############# Visualization error regression #############
 
 def viz_cac_error_bins(labels, preds, mean, std, fold):
@@ -37,7 +39,7 @@ def viz_cac_error_bins(labels, preds, mean, std, fold):
     sample_for_bin.append(count)   
     error.append(error_on_bin/count)
 
-    plt.figure(figsize=(18, 10))
+    plt.figure(figsize=(14, 8))
     plt.ylabel("Mean error on bin")
     plt.xlabel("Calcium score")
     plt.bar([1, 2, 3, 4], height=error)
@@ -69,9 +71,9 @@ def viz_cac_error(labels, preds, mean, std, fold, max_val=300, log_scale=False):
         top_error.append(prediction - label)
         bottom_error.append(0)
 
-    plt.figure(figsize=(18, 10))
-    plt.xlabel("Samples")
+    plt.figure(figsize=(14, 8))
     plt.ylabel("Calcium score predicted")
+    plt.xlabel("Calcium score label")
     plt.grid()
     plt.axhline(y = th, color = 'r', label = "Threshold")
 
@@ -131,7 +133,8 @@ def viz_samples_missclf(best_probs, cac_scores, pred_labels, true_labels, fold):
 
     cac_prob_wrong_preds.sort(key=lambda cac_prob: cac_prob[0])
 
-    plt.title('Probability of sample wrong classified sort by CAC score')
+    plt.figure(figsize=(10, 8))
+    plt.title('Sample wrong classified sort by CAC score')
     plt.scatter(*zip(*cac_prob_wrong_preds))
     plt.axvline(x = 10, color='r', label='Threshold')
     plt.xlabel('CAC score')

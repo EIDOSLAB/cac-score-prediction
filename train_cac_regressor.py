@@ -22,7 +22,7 @@ from utility.visualize import *
 from utility.config import base_path, seed, TH_cac_score
 
 sys.path.insert(0, base_path + '/src')
-
+plt.rc('font', size=15) 
 
 def run(model, dataloader, criterion, optimizer, mean, std, scheduler=None, phase='train'):
     epoch_loss, epoch_acc, samples_num = 0., 0., 0.
@@ -70,16 +70,32 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 parser = argparse.ArgumentParser()
 parser.add_argument('--epochs', type=int, default=90, help='num. of epochs (default 90)')
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate default (0.001)')
-parser.add_argument('--arch', type=str, default='densenet121', help='encoder architecture (densenet121 or resnet18 or efficientnet-b0)')
-parser.add_argument('--viz', type=bool, default='True', help='save metrics and losses')
-parser.add_argument('--save', type=bool, default='False', help='save model')
+parser.add_argument('--arch', type=str, default='densenet121', help='encoder architecture (densenet121 or resnet18 or efficientnet-b0) (default densenet121)')
+parser.add_argument('--viz', type=bool, default='True', help='save metrics and losses  (default True)')
+parser.add_argument('--save', type=bool, default='False', help='save model (default True)')
+parser.add_argument('--wd', type=float, default=1e-4, help='weight decay value (default 1e-4)')
+parser.add_argument('--batchsize', type=float, default=4, help='batch size value (default 4)')
+parser.add_argument('--momentum', type=float, default=0.9, help='momentum value (default 0.9)')
+parser.add_argument('--kfolds', type=int, default=5, help='folds for cross-validation (default 5)')
+parser.add_argument('--loss', type=str, default='MAE', help='loss function (MSE or MAE) (default MAE)')
+#parser.add_argument('--layer_enc_freeze', type=bool, default=True, help='unfreeze last layer encoder for training')
+
 args = parser.parse_args()
+utils.set_seed(seed)
 
 lr = args.lr
 encoder_name = args.arch
 epochs = args.epochs
 visualize_result = args.viz
 save_model = args.save
+weight_decay = args.wd
+momentum = args.momentum
+k_folds = args.kfolds
+batchsize = args.batchsize
+loss = args.loss
+#unfreeze_last_layer_encoder = args.layer_enc_freeze
+# From CheXpert
+mean, std = [0.5024], [0.2898]
 
 path_data = base_path + '/dataset/'
 path_labels = base_path + '/dataset/labels_new.db'
@@ -95,13 +111,15 @@ else:
     print(f'Unkown encoder_name value: {encoder_name}')
     exit(1)
 
-k_folds = 5
-batchsize = 4
-mean, std = [0.5024], [0.2898]
-weight_decay = 0.0001
-momentum = 0.9
 
-utils.set_seed(seed)
+if loss == 'MAE':
+    criterion = torch.nn.L1Loss()
+elif loss == 'MSE':
+    criterion = torch.nn.MSELoss()
+else:
+    print(f'Unkown loss value: {loss}')
+    exit(1)
+
 transform, _ = utils.get_transforms(img_size=1248, crop=1024, mean = mean, std = std)
 
 whole_dataset = dataset.CalciumDetection(path_data, transform, mode='regression')
@@ -110,7 +128,6 @@ whole_dataset = utils.local_copy(whole_dataset, require_cac_score=False)
 datas, labels = utils_regression.local_copy_str_kfold(whole_dataset)
 
 skf = StratifiedKFold(n_splits= k_folds)
-criterion = torch.nn.L1Loss()
 
 accs, b_accs, auc_scores = np.array([]), np.array([]), np.array([])
 
@@ -135,7 +152,11 @@ for fold, (train_ids, test_ids) in enumerate(skf.split(datas, labels)):
         viz_distr_data(test_loader, fold, 'test')
     
     model = cac_detector.CalciumDetector(encoder = encoder_name, path_encoder = path_model, mode='regressor').to(device)
-    encoder_last_layer = cac_detector.unfreeze_lastlayer_encoder(model, encoder_name)
+    last_layer = cac_detector.unfreeze_lastlayer_encoder(model, encoder_name)
+    params = [model.fc.parameters(), last_layer.parameters()]
+
+    #if unfreeze_last_layer_encoder:
+    #    params.append(cac_detector.unfreeze_lastlayer_encoder(model, encoder_name))
 
     best_model = None
     test_acc, test_loss = 0., 0.
@@ -147,7 +168,6 @@ for fold, (train_ids, test_ids) in enumerate(skf.split(datas, labels)):
     trains_abs, tests_abs = [], []
     best_model_outputs = []
     
-    params = [model.fc.parameters(), encoder_last_layer.parameters()]
     optimizer = torch.optim.SGD(itertools.chain(*params),  lr=lr, weight_decay=weight_decay, momentum=momentum)
     scheduler = MultiStepLR(optimizer, milestones=[20, 40, 60], gamma=0.1)
     #print(f'Pytorch trainable param {sum(p.numel() for p in model.parameters() if p.requires_grad)}')
@@ -188,7 +208,7 @@ for fold, (train_ids, test_ids) in enumerate(skf.split(datas, labels)):
         viz_cac_error_bins(best_model_true_label, best_model_outputs, mean_cac, std_cac, fold)
 
     if save_model:
-        torch.save({'model': best_model.state_dict()}, f'calcium-detection-sdg-seed-{seed}-regr-fold-{fold}.pt')
+        torch.save({'model': best_model.state_dict()}, f'calcium-detection-seed-{seed}-regr-fold-{fold}.pt')
 
     print('--------------------------------')
     

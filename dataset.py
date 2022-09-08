@@ -1,7 +1,6 @@
 import torch
 import glob
 import os
-import torchvision
 import pydicom
 import numpy as np
 import sqlite3
@@ -66,48 +65,9 @@ class CalciumDetection(torch.utils.data.Dataset):
             img = self.transform(img=img)
         
         if self.mode == 'regression':
-            return img.float(), cac_score 
+            return img.float(), cac_score
         else:
             if self.require_cac_score:
                 return img, label, cac_score
             else:
                 return img, label
-
-
-
-class CalciumDetectionRegression(torch.utils.data.Dataset):
-    def __init__(self, data_dir, labels_path, transform=None):
-        self.root = data_dir
-        self.elem = glob.glob(self.root + '*' + '/rx/')
-
-        conn = sqlite3.connect(labels_path)
-        conn.row_factory = sqlite3.Row  
-        cursor = conn.cursor()
-
-        self.labels = [dict(row) for row in cursor.execute('SELECT * FROM patient').fetchall()]
-        self.cac_scores = np.array([patient['cac_score'] for patient in self.labels])
-        self.transform = transform
-
-
-    def __len__(self):
-        return len(self.elem)
-
-    def __getitem__(self, idx):
-        # Process img                
-        path = self.elem[idx] + os.listdir(self.elem[idx])[0]
-        dimg = pydicom.dcmread(path, force=True)
-        img16 = apply_windowing(dimg.pixel_array, dimg)
-        img_eq = exposure.equalize_hist(img16)
-        img8 = convert(img_eq, 0, 255, np.uint8)
-        img_array = ~img8 if dimg.PhotometricInterpretation == 'MONOCHROME1' else img8
-        img = Image.fromarray(img_array)
-
-        cac_score = [label for label in self.labels if label['id'] == get_patient_id(dimg)][0]['cac_score']
-
-        if self.transform is not None:
-            img = self.transform(img=img)
-        else:
-            img = torchvision.transforms.ToTensor()(img)
-
-        return img.float(), cac_score 
-

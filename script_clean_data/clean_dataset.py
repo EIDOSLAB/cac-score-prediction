@@ -38,18 +38,12 @@ def fix_labels(labels_path):
     cursor.execute('''UPDATE patient SET id = 'CAC_098' WHERE id = 'CAC_097' ''')
     conn.commit()
 
-    # Check
-    labels = [dict(row) for row in cursor.execute('SELECT * FROM patient').fetchall()]
-    
-
-
 
 def clean_data(path_data, remove_file):
     
     # Doppia radiografia frontale: 326 -> IM-0003-1003.dcm, IM-0002-1002.dcm 
     #                               439 -> IM-0104-1001.dcm, IM-0105-1002.dcm
 
-    # File of dicom image
     DCM_files = []
     for dir_name, _, file_list in os.walk(path_data):
         for filename in file_list:
@@ -59,7 +53,7 @@ def clean_data(path_data, remove_file):
     print("Number of (.dcm) files =", len(DCM_files))
 
     count_front = 0
-    count_meta = 0
+    count_metadata = 0
     count_lat = 0
     count_empty = 0
     count_img_with_no_position = 0
@@ -67,12 +61,12 @@ def clean_data(path_data, remove_file):
     for path_file in DCM_files:
         ds = dcmread(path_file, force=True)
 
+        # If there isn't PixelData in DICOM file remove it
         if 'PixelData' not in ds:
             if remove_file:
                 os.remove(path_file) 
         else:
             size = os.path.getsize(path_file)
-            print(f'Path file {path_file} Size {size}')
 
             if tag_view_position in ds:
                 view_position = ds[('0018','5101')].value
@@ -81,28 +75,30 @@ def clean_data(path_data, remove_file):
                     count_empty += 1
                 elif view_position == 'PA' or view_position == 'AP' or view_position == 'NN':
                     count_front += 1
+                # remove lateral rx
                 elif view_position == 'LL' or view_position == 'LAT' or view_position == 'LATERALE':
                     count_lat += 1
-
                     if remove_file:
                         os.remove(path_file) 
-            else:
-                if 'PixelData' in ds:
-                    count_img_with_no_position += 1
                 else:
-                    count_meta += 1
-
-                    if remove_file:
-                        os.remove(path_file) 
+                # if view_position not in DICOM file is not an image, so remove
+                    count_img_with_no_position += 1
+            else:
+                # if the file is less the 1MB is a metedata file
+                if size < 1000000:
+                    count_metadata += 1
                 
+                if remove_file:
+                        os.remove(path_file) 
 
-        tot = count_img_with_no_position + count_empty + count_front
-        print(f'Metadata {count_meta} PA {count_front} LAT {count_lat} Empty {count_empty} Fault {count_img_with_no_position}')
-        print(f'File to check {tot}')
+                    
+
+    tot = count_img_with_no_position + count_empty + count_front
+    print(f'Metadata {count_metadata}\n RX PA {count_front}\n RX LAT {count_lat}\n RX Empty position {count_empty}')
+    print(f'File to check by hand {tot}')
 
 
 if __name__ == '__main__':
-    path_labels =  '/home/fiodice/project/labels/site.db'
     path_data = '/home/fiodice/project/original_data'
 
     clean_data(path_data, False)

@@ -19,6 +19,7 @@ from models import  cac_detector
 from utility.visualize import *
 from utility.config import base_path, seed
 
+plt.rc('font', size=13) 
 sys.path.insert(0, base_path + '/src')
 
 def run(model, dataloader, criterion, optimizer, scheduler=None, phase='train'):
@@ -64,15 +65,28 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--epochs', type=int, default=50, help='num. of epochs (default 50)')
 parser.add_argument('--lr', type=float, default=3e-4, help='learning rate default (3e-4)')
 parser.add_argument('--arch', type=str, default='densenet121', help='encoder architecture (densenet121 or resnet18 or efficientNet)')
-parser.add_argument('--viz', type=bool, default='True', help='save metrics and losses')
-parser.add_argument('--save', type=bool, default='False', help='save model')
+parser.add_argument('--viz', type=bool, default=True, help='save metrics and losses')
+parser.add_argument('--save', type=bool, default=False, help='save model')
+parser.add_argument('--wd', type=float, default=1e-4, help='weight decay value (default 1e-4)')
+parser.add_argument('--batchsize', type=float, default=4, help='batch size value (default 4)')
+parser.add_argument('--momentum', type=float, default=0.9, help='momentum value (default 0.9)')
+parser.add_argument('--kfold', type=int, default=5, help='folds for cross-validation (default 5)')
+
 args = parser.parse_args()
+utils.set_seed(seed)
 
 lr = args.lr
 encoder_name = args.arch
 epochs = args.epochs
 visualize_result = args.viz
 save_model = args.save
+weight_decay = args.wd
+momentum = args.momentum
+k_folds = args.kfolds
+batchsize = args.batchsize
+
+# From CheXpert
+mean, std = [0.5024], [0.2898]
 
 path_data = base_path + '/dataset/'
 path_labels = base_path + '/dataset/labels.db'
@@ -88,13 +102,6 @@ else:
     print(f'Unkown encoder_name value: {encoder_name}')
     exit(1)
 
-k_folds = 5
-batchsize = 4
-mean, std = [0.5024], [0.2898]
-weight_decay = 0.0001
-momentum = 0.9
-
-utils.set_seed(seed)
 transform, _ = utils.get_transforms(img_size=1248, crop=1024, mean = mean, std = std)
 
 whole_dataset = dataset.CalciumDetection(path_data, transform, mode='classification', require_cac_score=True)
