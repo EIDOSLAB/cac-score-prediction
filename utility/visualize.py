@@ -71,7 +71,7 @@ def viz_cac_error(labels, preds, mean, std, fold, max_val=300, log_scale=False):
         top_error.append(prediction - label)
         bottom_error.append(0)
 
-    plt.figure(figsize=(14, 8))
+    plt.figure(figsize=(20, 8))
     plt.ylabel("Calcium score predicted")
     plt.xlabel("Calcium score label")
     plt.grid()

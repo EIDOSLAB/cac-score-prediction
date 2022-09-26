@@ -82,7 +82,7 @@ visualize_result = args.viz
 save_model = args.save
 weight_decay = args.wd
 momentum = args.momentum
-k_folds = args.kfolds
+k_folds = args.kfold
 batchsize = args.batchsize
 
 # From CheXpert

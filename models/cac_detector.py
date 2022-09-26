@@ -22,6 +22,13 @@ def unfreeze_lastlayer_encoder(model, encoder_name):
     return encoder_last_layer
 
 
+def load_model(path_model, path_encoder, mode):
+    model = CalciumDetector(encoder = 'densenet121', path_encoder = path_encoder, mode=mode)
+    dict_model = torch.load(path_model)["model"]
+    model.load_state_dict(dict_model)
+    return model
+
+
 class CalciumDetector(torch.nn.Module):
     def __init__(self, path_encoder, encoder, mode = 'classifier'):
         super().__init__()

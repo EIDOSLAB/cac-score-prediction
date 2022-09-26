@@ -78,7 +78,6 @@ parser.add_argument('--batchsize', type=float, default=4, help='batch size value
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum value (default 0.9)')
 parser.add_argument('--kfolds', type=int, default=5, help='folds for cross-validation (default 5)')
 parser.add_argument('--loss', type=str, default='MAE', help='loss function (MSE or MAE) (default MAE)')
-#parser.add_argument('--layer_enc_freeze', type=bool, default=True, help='unfreeze last layer encoder for training')
 
 args = parser.parse_args()
 utils.set_seed(seed)
@@ -154,9 +153,6 @@ for fold, (train_ids, test_ids) in enumerate(skf.split(datas, labels)):
     model = cac_detector.CalciumDetector(encoder = encoder_name, path_encoder = path_model, mode='regressor').to(device)
     last_layer = cac_detector.unfreeze_lastlayer_encoder(model, encoder_name)
     params = [model.fc.parameters(), last_layer.parameters()]
-
-    #if unfreeze_last_layer_encoder:
-    #    params.append(cac_detector.unfreeze_lastlayer_encoder(model, encoder_name))
 
     best_model = None
     test_acc, test_loss = 0., 0.
