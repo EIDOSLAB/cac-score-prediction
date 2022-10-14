@@ -89,7 +89,7 @@ batchsize = args.batchsize
 mean, std = [0.5024], [0.2898]
 
 path_data = base_path + '/dataset/'
-path_labels = base_path + '/dataset/labels.db'
+path_labels = base_path + '/dataset/side.db'
 path_plot = base_path + '/plot_training/'
 
 if encoder_name == 'densenet121':

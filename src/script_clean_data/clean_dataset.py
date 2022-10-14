@@ -35,7 +35,7 @@ def fix_labels(labels_path):
     conn.commit()
 
     # Problema con 097: l'immagine ha id 098 e tale id non è presente nel site
-    cursor.execute('''UPDATE patient SET id = 'CAC_098' WHERE id = 'CAC_097' ''')
+    #cursor.execute('''UPDATE patient SET id = 'CAC_098' WHERE id = 'CAC_097' ''')
     conn.commit()
 
 
@@ -45,13 +45,14 @@ def clean_data(path_data, remove_file):
     #                               439 -> IM-0104-1001.dcm, IM-0105-1002.dcm
 
     DCM_files = []
-    for dir_name, _, file_list in os.walk(path_data):
+    for dir_name, wd, file_list in os.walk(path_data):
         for filename in file_list:
             if ".dcm" in filename.lower():
-                DCM_files.append(os.path.join(dir_name, filename))
+                if "rx" in os.path.join(dir_name, filename):
+                    DCM_files.append(os.path.join(dir_name, filename))
 
     print("Number of (.dcm) files =", len(DCM_files))
-
+    print("---> ",DCM_files)
     count_front = 0
     count_metadata = 0
     count_lat = 0
@@ -99,7 +100,5 @@ def clean_data(path_data, remove_file):
 
 
 if __name__ == '__main__':
-    path_data = '/home/fiodice/project/original_data'
-
-    clean_data(path_data, False)
-    
+    path_data = '/src/dataset/'
+    clean_data(path_data, True)

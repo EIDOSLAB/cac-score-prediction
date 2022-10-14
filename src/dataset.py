@@ -33,8 +33,8 @@ class CalciumDetection(torch.utils.data.Dataset):
     def __init__(self, data_dir, transform, mode, require_cac_score=False):
         self.root = data_dir
         self.elem = glob.glob(self.root + '*' + '/rx/')
-
-        path_labels = data_dir + 'labels.db'
+    
+        path_labels = data_dir + 'site.db'
 
         conn = sqlite3.connect(path_labels)
         conn.row_factory = sqlite3.Row  
@@ -48,6 +48,19 @@ class CalciumDetection(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.elem)
+    
+    
+    def get_images(self,idx):
+        path = self.elem[idx] + os.listdir(self.elem[idx])[0]
+        dimg = pydicom.dcmread(path, force=True)
+        img16 = apply_windowing(dimg.pixel_array, dimg)
+        img_eq = exposure.equalize_hist(img16)
+        img8 = convert(img_eq, 0, 255, np.uint8)
+        img_array = ~img8 if dimg.PhotometricInterpretation == 'MONOCHROME1' else img8
+        img = Image.fromarray(img_array)
+        cac_score = [label for label in self.labels if label['id'] == get_patient_id(dimg)][0]['cac_score']
+        return img, cac_score, self.elem[idx]
+        
 
     def __getitem__(self, idx):
         path = self.elem[idx] + os.listdir(self.elem[idx])[0]
