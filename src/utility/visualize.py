@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import collections
 import seaborn as sns
 import pandas as pd 
-
+import os
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve, auc
 
@@ -87,7 +87,8 @@ def viz_cac_error(labels, preds, mean, std, fold, max_val=300, log_scale=False):
 
 ############# Visualization error classification #############
 
-def viz_probs_prediction(best_probs, pred_labels, true_labels, fold):
+def viz_probs_prediction(best_probs, pred_labels, true_labels, fold, save_pth):
+    pth = os.path.join(save_pth, 'probs_correct_clf_fold' + str(fold) + '.png')
     pred_and_labels = list(np.array((pred_labels, true_labels)).T)
     corret_preds, wrong_preds = [], []
 
@@ -110,7 +111,7 @@ def viz_probs_prediction(best_probs, pred_labels, true_labels, fold):
     plt.xlabel('Probability')
     plt.ylabel('Sample')
     plt.show()
-    plt.savefig(PATH_PLOT  + 'probs_correct_clf_fold' + str(fold) + '.png')
+    plt.savefig(pth)
     plt.close()
 
     plt.bar(x, samples_for_wrong_preds)
@@ -122,7 +123,8 @@ def viz_probs_prediction(best_probs, pred_labels, true_labels, fold):
     plt.close()
 
 
-def viz_samples_missclf(best_probs, cac_scores, pred_labels, true_labels, fold):
+def viz_samples_missclf(best_probs, cac_scores, pred_labels, true_labels, fold, save_plot):
+    pth = os.path.join(save_plot, 'analysis_results_' + str(fold) + '.png')
     pred_and_labels = list(np.array((pred_labels, true_labels)).T)
     cac_prob_wrong_preds = []
     cac_scores = np.clip(cac_scores, 0, 500)
@@ -140,7 +142,7 @@ def viz_samples_missclf(best_probs, cac_scores, pred_labels, true_labels, fold):
     plt.xlabel('CAC score')
     plt.ylabel('Probability')
     plt.show()
-    plt.savefig(PATH_PLOT  + 'analysis_results_' + str(fold) + '.png')
+    plt.savefig(pth)
     plt.close()
 
 
@@ -193,16 +195,18 @@ def save_metric(train, test, metric, fold):
     plt.close()
 
 
-def save_cm(true_labels, best_pred_labels, fold):
+def save_cm(true_labels, best_pred_labels, fold, path_plot):
+    pth = os.path.join(path_plot,'cm_fold' + str(fold) + '.png')
     cm = confusion_matrix(true_labels, best_pred_labels)
     ax = sns.heatmap(cm, annot=True, fmt="d")
     hm = ax.get_figure()
-    hm.savefig(PATH_PLOT + 'cm_fold' + str(fold) + '.png')
+    hm.savefig(pth)
     hm.clf()
     plt.close(hm)
 
 
-def save_roc_curve(true_labels, probs, fold):
+def save_roc_curve(true_labels, probs, fold, path_plot):
+    pth = os.path.join(path_plot, 'roc_' + 'fold' + str(fold) + '.png')
     fpr, tpr, _ = roc_curve(true_labels, probs, pos_label=1)
     roc_auc = auc(fpr, tpr)
     plt.figure(1)
@@ -214,17 +218,18 @@ def save_roc_curve(true_labels, probs, fold):
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
     plt.legend(loc="lower right")
-    plt.savefig(PATH_PLOT + 'roc_' + 'fold' + str(fold) + '.png')
+    plt.savefig(pth)
     plt.close()
 
     return roc_auc
 
 
-def save_losses(train_losses, test_losses, best_test_acc, fold):
+def save_losses(train_losses, test_losses, best_test_acc, fold, save_plot):
+    pth = os.path.join(save_plot, 'losses_fold' + str(fold) + '.png')
     plt.figure(figsize=(16, 8))
     plt.title(f'Best accuracy : {best_test_acc:.4f}')
     plt.plot(train_losses, label='Train loss')
     plt.plot(test_losses, label='Test loss')
     plt.legend()
-    plt.savefig(PATH_PLOT  + 'losses_fold' + str(fold) + '.png')
+    plt.savefig(pth)
     plt.close()

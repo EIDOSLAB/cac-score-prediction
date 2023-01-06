@@ -5,6 +5,8 @@ RUN pip install pydicom
 RUN pip install efficientnet-pytorch 
 RUN pip install python-gdcm
 RUN pip install pylibjpeg
+RUN pip install seaborn
+RUN pip install openpyxl
 
 WORKDIR /src
 COPY src /src 
