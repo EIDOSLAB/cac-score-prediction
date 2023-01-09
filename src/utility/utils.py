@@ -35,6 +35,6 @@ def get_transforms(img_size, crop, mean, std):
 
 def local_copy(dataset, require_cac_score):
     if require_cac_score:
-        return  [(dataset[j][0],dataset[j][1],dataset[j][2]) for j in range(len(dataset))]
+        return  [(dataset[j][0],dataset[j][1],dataset[j][2],dataset[j][3]) for j in range(len(dataset))]
     else:
-        return [(dataset[j][0],dataset[j][1]) for j in range(len(dataset))]
+        return [(dataset[j][0],dataset[j][1],dataset[j][2]) for j in range(len(dataset))]

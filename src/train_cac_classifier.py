@@ -1,5 +1,6 @@
 from email.mime import base
 from operator import mod
+import pandas as pd
 import torch
 import dataset
 import copy
@@ -27,7 +28,7 @@ def run(model, dataloader, criterion, optimizer,device, scheduler=None, phase='t
     all_cac_scores = []
     probabilities = None
   
-    for (data, labels, cac_scores) in tqdm(dataloader):
+    for (data, labels, cac_scores,_) in tqdm(dataloader):
         data, labels = data.to(device), labels.to(device)
         
         optimizer.zero_grad()
@@ -129,7 +130,7 @@ def main(args):
 
     whole_dataset = dataset.CalciumDetection(path_data, transform, mode='classification', require_cac_score=True, internal_data = True)
     # From torch.utils.data.Dataset to list, this increse speed of each epochs
-    #whole_dataset = utils.local_copy(whole_dataset, require_cac_score=True)
+    whole_dataset = utils.local_copy(whole_dataset, require_cac_score=True)
 
     kfold = KFold(n_splits=k_folds, shuffle=True)
     criterion = torch.nn.CrossEntropyLoss()
@@ -154,7 +155,7 @@ def main(args):
         #    viz_distr_data_binary(train_loader, 'train', fold)
         #    viz_distr_data_binary(test_loader, 'test', fold)
         
-        model = cac_detector.CalciumDetector(encoder = encoder_name, path_encoder = path_model, mode='classifier').to(device)
+        model = cac_detector.CalciumDetector(encoder = encoder_name, path_encoder = path_model, mode='classification').to(device)
         encoder_last_layer = cac_detector.unfreeze_lastlayer_encoder(model, encoder_name)
 
         best_model = None
@@ -216,11 +217,16 @@ def main(args):
 
     print(f'K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS')
     print('--------------------------------')
-
+    results_xlsx = []
     for fold, value in enumerate(accs):
         print(f'Fold {fold}: Acc {accs[fold]:.4f} BA {b_accs[fold]:.4f} AUC {auc_scores[fold]:.4f}\n')
+        results_xlsx.append([fold,accs[fold], b_accs[fold],auc_scores[fold]])
 
     print(f'Average  AC: {accs.mean():.4f} BA: {b_accs.mean():.4f} AUC: {auc_scores.mean():.4f}\n')
+    results_xlsx.append([10,accs.mean(), b_accs.mean(),auc_scores.mean()])
+    df = pd.DataFrame(results_xlsx, columns=['fold', 'accuracy', 'balanced_accuracy',"auc_scores"])
+    
+    df.to_excel(os.path.join(path_plot,"folded_results.xlsx"))
     
     
     

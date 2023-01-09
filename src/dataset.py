@@ -42,43 +42,45 @@ class CalciumDetection(torch.utils.data.Dataset):
         
         
         
-        path_labels = data_dir + '/labels.db'
-
+        path_labels = os.path.join(data_dir,"site.db") 
         conn = sqlite3.connect(path_labels)
         conn.row_factory = sqlite3.Row  
         cursor = conn.cursor()
 
         self.labels = {}
-        list_pat = [dict(row) for row in cursor.execute('SELECT * FROM patient').fetchall()]
-        
-        for lp in list_pat:
+        self.list_pat = [dict(row) for row in cursor.execute('SELECT * FROM patient').fetchall()]
+        for lp in self.list_pat:
             if internal_data:
                 if "CAC" in lp['id']: 
                     self.labels[lp['id']] = lp['cac_score']
             else:
                 if "CAC" not in lp['id']:
                     self.labels[lp['id']] = lp['cac_score']
-        print("labels: ",self.labels)
+
         self.transform = transform
         self.mode = mode
         self.require_cac_score = require_cac_score
-
-
+        print("inizio descrizione")
+        self.dataset_descriptor = self.create_dataset_descriptor()
+        print("fine descrizione")
+        print("numero di elementi: ",len(self.labels))
+        #print(self.dataset_descriptor["CAC_487"])
+        
+    def create_dataset_descriptor(self):
+        res = {}
+        for lp in self.list_pat:
+            tmp = {}
+            for keys in list(lp.keys()):
+                if "id" not in keys:
+                    tmp[keys] = lp[keys]
+            res[lp["id"]] = tmp
+        return res
+        
     def __len__(self):
         return len(self.elem)
     
     
-    def get_images(self,idx):
-        
-        path = os.path.join(self.elem[idx], os.listdir(self.elem[idx])[0])
-        dimg = pydicom.dcmread(path, force=True)
-        img16 = apply_windowing(dimg.pixel_array, dimg)
-        img_eq = exposure.equalize_hist(img16)
-        img8 = convert(img_eq, 0, 255, np.uint8)
-        img_array = ~img8 if dimg.PhotometricInterpretation == 'MONOCHROME1' else img8
-        img = Image.fromarray(img_array)
-        cac_score = [label for label in self.labels if label['id'] == get_patient_id(dimg)][0]['cac_score']
-        return img, cac_score, self.elem[idx]
+
         
 
     def __getitem__(self, idx):
@@ -99,10 +101,10 @@ class CalciumDetection(torch.utils.data.Dataset):
             img = self.transform(img=img)
         
         if self.mode == 'regression':
-
-            return img.float(), cac_score, self.elem[idx].split("/")[-3]
+            return img.float(), label, cac_score,  self.elem[idx].split("/")[-3] # label is useless correct everythin else
+        
         else:
             if self.require_cac_score:
-                return img, label, cac_score
+                return img, label, cac_score, self.elem[idx].split("/")[-3]
             else:
-                return img, label
+                return img, label , self.elem[idx].split("/")[-3]

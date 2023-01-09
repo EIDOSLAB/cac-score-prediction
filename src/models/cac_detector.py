@@ -3,7 +3,7 @@ import sys
 
 from models.model_chexpert import HierarchicalResidual
 
-sys.path.insert(0, '/home/fiodice/project/src')
+
 
 
 def unfreeze_lastlayer_encoder(model, encoder_name):
@@ -22,15 +22,15 @@ def unfreeze_lastlayer_encoder(model, encoder_name):
     return encoder_last_layer
 
 
-def load_model(path_model, path_encoder, mode):
-    model = CalciumDetector(encoder = 'densenet121', path_encoder = path_encoder, mode=mode)
+def load_model(path_model, path_encoder, mode,encoder):
+    model = CalciumDetector(encoder = encoder, path_encoder = path_encoder, mode=mode)
     dict_model = torch.load(path_model)["model"]
     model.load_state_dict(dict_model)
     return model
 
 
 class CalciumDetector(torch.nn.Module):
-    def __init__(self, path_encoder, encoder, mode = 'classifier'):
+    def __init__(self, path_encoder, encoder, mode = 'classification'):
         super().__init__()
 
         if encoder == 'densenet121':
@@ -56,12 +56,12 @@ class CalciumDetector(torch.nn.Module):
         self.encoder = model_chexpert.encoder
         self.fc = None
 
-        if mode == 'classifier':
+        if mode == 'classification':
             self.fc =  torch.nn.Sequential(
                     torch.nn.Linear(size_fc, 64),
                     torch.nn.ReLU(),
                     torch.nn.Linear(64, 2))
-        elif mode == 'regressor':
+        elif mode == 'regression':
             self.fc =  torch.nn.Sequential(
                     torch.nn.Linear(size_fc, 64),
                     torch.nn.ReLU(),

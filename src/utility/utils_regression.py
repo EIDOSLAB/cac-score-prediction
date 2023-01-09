@@ -14,7 +14,7 @@ def pre_process_label(mean, std, labels):
 
 
 def mean_std_cac_score_log(loader):
-    cac_score = torch.cat([labels for (_, labels, _) in loader]).numpy()
+    cac_score = torch.cat([labels for (_, _, labels, _) in loader]).numpy()
     cac_score_clip = np.clip(cac_score, a_min=0, a_max=max_cac_val)
     log_cac_score = np.log(cac_score_clip + 0.001)
     return log_cac_score.mean(), log_cac_score.std()
@@ -22,7 +22,7 @@ def mean_std_cac_score_log(loader):
 
 def local_copy_str_kfold(dataset):
     data = [dataset[j][0] for j in range(len(dataset))]
-    label = [dataset[j][1] for j in range(len(dataset))]
+    label = [dataset[j][2] for j in range(len(dataset))]
     return data, label
 
 

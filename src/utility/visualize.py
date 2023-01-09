@@ -9,8 +9,8 @@ from sklearn.metrics import roc_curve, auc
 
 from utility.config import TH_cac_score, base_path
 
-PATH_PLOT = base_path + '/plot_training/'
 
+TH_cac_score = 1
 plt.rc('font', size=13) 
 
 ############# Visualization error regression #############
@@ -51,7 +51,11 @@ def viz_cac_error_bins(labels, preds, mean, std, fold):
     plt.savefig(PATH_PLOT  + 'errorbin_fold' + str(fold) + '.png')
 
 
-def viz_cac_error(labels, preds, mean, std, fold, max_val=300, log_scale=False):
+def viz_cac_error(labels, preds, mean, std, fold, path, max_val=300, log_scale=False):
+    if log_scale:
+        pth = os.path.join(path, 'error_cac_final_fold' + str(fold) + '__logarithmic.png')
+    else:
+        pth = os.path.join(path, 'error_cac_final_fold' + str(fold) + '.png')
     if log_scale:
         labels = ((labels * std) + mean - 0.001).flatten()
         preds = ((preds * std) + mean - 0.001).flatten()
@@ -81,7 +85,7 @@ def viz_cac_error(labels, preds, mean, std, fold, max_val=300, log_scale=False):
                  y = np.sort(labels), 
                  yerr=[bottom_error, top_error], fmt='o')
     plt.show()
-    plt.savefig(PATH_PLOT  + 'error_cac_final_fold' + str(fold) + '.png')
+    plt.savefig(pth)
     plt.close()
 
 
@@ -157,19 +161,21 @@ def samples_for_preds(probs):
  
 ############# Utility distribution #############
 
-def viz_distr_data(loader, fold, phase):
+def viz_distr_data(loader, fold, phase, path):
     scores = []
+    pth = os.path.join(path, str(phase) + '_cac_frequency_fold_' + str(fold) + '.png')
     for (_, labels) in loader:
         scores.append(labels.numpy()[0])
     plt.figure()
     plt.rcParams.update({'figure.figsize':(7,5), 'figure.dpi':100})
     plt.hist(scores, bins=int(180/1))
     plt.gca().set(title='Frequency Histogram CAC score fold ' + str(fold), xlabel='Calcium score', ylabel='Count')
-    plt.savefig(PATH_PLOT + str(phase) + '_cac_frequency_fold_' + str(fold) + '.png')
+    plt.savefig(pth)
     plt.close()
 
 
-def viz_distr_data_binary(dataloader, set, fold):
+def viz_distr_data_binary(dataloader, set, fold, path_plot): 
+    pth = os.path.join(path_plot, 'distr_' + str(set) + '_fold' + str(fold) + '.png')
     batch_labels = [label.tolist() for _, label, _ in dataloader]
     label_flat_list = [item for sublist in batch_labels for item in sublist]
     count_labels = collections.OrderedDict(sorted(collections.Counter(label_flat_list).items()))
@@ -180,18 +186,19 @@ def viz_distr_data_binary(dataloader, set, fold):
     })
 
     sns.barplot(data=val_samplesize)
-    plt.savefig(PATH_PLOT + 'distr_' + str(set) + '_fold' + str(fold) + '.png')
+    plt.savefig(pth)
     plt.close()
 
 
 ############# Utility save metrics #############
 
-def save_metric(train, test, metric, fold):
+def save_metric(train, test, metric, fold, path):
+    pth = os.path.join(path, str(metric) + 'fold_' + str(fold) + '_.png')
     plt.figure(figsize=(16, 8))
     plt.plot(train, label='Train ' + str(metric))
     plt.plot(test, label='Test ' + str(metric))
     plt.legend()
-    plt.savefig(PATH_PLOT + str(metric) + 'fold_' + str(fold) + '_.png')
+    plt.savefig(pth)
     plt.close()
 
 
