@@ -76,7 +76,7 @@ def get_args():
     parser.add_argument('--wd', type=float, default=1e-4, help='weight decay value (default 1e-4)')
     parser.add_argument('--batchsize', type=float, default=4, help='batch size value (default 4)')
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum value (default 0.9)')
-    parser.add_argument('--kfolds', type=int, default=5, help='folds for cross-validation (default 5)')
+    parser.add_argument('--kfolds', type=int, default=6, help='folds for cross-validation (default 5)')
     parser.add_argument('--loss', type=str, default='MAE', help='loss function (MSE or MAE) (default MAE)')
     parser.add_argument('--base_path',type= str, default='/scratch/calcium_score', help='base path ')
     parser.add_argument('--path_data',type=str, default = '/scratch/dataset/calcium_rx/', help = 'path for data')
@@ -98,7 +98,6 @@ def main(args):
     encoder_name = args.arch
     epochs = args.epochs
     visualize_result = args.viz
-    save_model = args.save
     weight_decay = args.wd
     momentum = args.momentum
     k_folds = args.kfolds
@@ -166,7 +165,7 @@ def main(args):
             viz_distr_data(train_loader, fold,path_plot, 'train', path_plot)
             viz_distr_data(test_loader, fold,path_plot, 'test',path_plot)
         
-        model = cac_detector.CalciumDetector(encoder = encoder_name, path_encoder = path_model, mode='regressor').to(device)
+        model = cac_detector.CalciumDetector(encoder = encoder_name, path_encoder = path_model, mode='regression').to(device)
         last_layer = cac_detector.unfreeze_lastlayer_encoder(model, encoder_name)
         params = [model.fc.parameters(), last_layer.parameters()]
 
@@ -212,7 +211,7 @@ def main(args):
                 save_cm(class_labels, best_model_pred_labels, fold, path_plot)
                 viz_cac_error(best_model_true_label, best_model_outputs, mean_cac, std_cac, fold, path_plot,log_scale=True)
                 viz_cac_error_bins(best_model_true_label, best_model_outputs, mean_cac, std_cac, path_plot,fold)
-                torch.save({'model': best_model.state_dict()}, os.path.join(models_path,f'Best-NEW-calcium-detection-seed-{seed}-regr-fold-{fold}.pt'))
+                torch.save({'model': best_model.state_dict()}, os.path.join(models_path,f'Best-LAST-calcium-detection-seed-{seed}-regr-fold-{fold}.pt'))
 
 
         save_metric(train_accs, test_accs, 'accs', fold, path_plot)
@@ -241,3 +240,16 @@ def main(args):
     df = pd.DataFrame(results_xlsx, columns=['fold', 'accuracy', 'balanced_accuracy',"auc_scores"])
     df.to_excel(os.path.join(path_plot,"folded_results.xlsx")) 
     print(f'Average  AC: {accs.mean():.4f} BA: {b_accs.mean():.4f} AUC: {auc_scores.mean():.4f}\n')
+
+
+
+
+
+if __name__ == '__main__':
+    
+
+    print(f'torch version: {torch.__version__}')
+    print(f'cuda version: {torch.version.cuda}')
+
+    args = get_args()
+    main(args)

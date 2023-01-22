@@ -61,7 +61,7 @@ class CalciumDetector(torch.nn.Module):
                     torch.nn.Linear(size_fc, 64),
                     torch.nn.ReLU(),
                     torch.nn.Linear(64, 2))
-        elif mode == 'regression':
+        else:
             self.fc =  torch.nn.Sequential(
                     torch.nn.Linear(size_fc, 64),
                     torch.nn.ReLU(),

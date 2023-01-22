@@ -7,6 +7,8 @@ RUN pip install python-gdcm
 RUN pip install pylibjpeg
 RUN pip install seaborn
 RUN pip install openpyxl
+RUN pip install captum
+
 
 WORKDIR /src
 COPY src /src 
